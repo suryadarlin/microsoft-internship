@@ -1,0 +1,249 @@
+import json
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+
+# === Constants & Styles ===
+PRIMARY_COLOR     = "#4A90E2"   # Blue
+SECONDARY_COLOR   = "#50E3C2"   # Teal
+BG_COLOR          = "#F7F7F7"   # Light gray
+TEXT_COLOR        = "#333333"   # Dark gray
+SUBTEXT_COLOR     = "#666666"   # Medium gray
+SEPARATOR_COLOR   = "#EEEEEE"
+BTN_SAVE_BG       = SECONDARY_COLOR
+BTN_SAVE_FG       = "#FFFFFF"
+BTN_OUTLINE_COLOR = PRIMARY_COLOR
+BTN_OUTLINE_FG    = PRIMARY_COLOR
+FONT_HEADER       = ("Helvetica", 24, "bold")
+FONT_SUBHEADER    = ("Helvetica", 14, "bold")
+FONT_BODY         = ("Helvetica", 16)
+
+QUESTIONS = [
+    "I grasp new concepts best by reading detailed written explanations.",
+    "Diagrams, flowcharts, and images help me understand topics faster.",
+    "Formulas, shortcuts, and step-by-step methods are my go-to tools.",
+    "I learn effectively by working through logical puzzles or proofs.",
+    "Labelled illustrations (maps, graphs) make complex ideas clear.",
+    "Memorizing statements and theoretical definitions helps me retain info.",
+    "I like to summarize each topic with concise equations or formulas.",
+    "I enjoy breaking down concepts via logical stepwise reasoning.",
+    "Visual mind-maps and colored charts boost my recall.",
+    "Bullet-point notes and descriptive paragraphs aid my study.",
+    "Math tricks and mnemonic shortcuts speed up my problem solving.",
+    "I feel confident when I see how each idea follows logically.",
+    "Watching videos or animations clarifies abstract ideas for me.",
+    "Reading and re-reading theory solidifies my understanding.",
+    "Creating my own formulas or shortcuts helps me learn."
+]
+
+TECHNIQUES = {
+    "Theory & Statements": [
+        ("📖", "Read detailed explanations from textbooks"),
+        ("✍️", "Summarize each concept in your own words"),
+        ("🗂️", "Create flashcards for definitions and theorems"),
+        ("📝", "Write brief essays to reinforce ideas")
+    ],
+    "Visual Aids": [
+        ("📊", "Draw diagrams, flowcharts, and concept maps"),
+        ("🎨", "Use color-coding and labeled images"),
+        ("🗺️", "Create mind maps with branches, colors, and icons"),
+        ("🎞️", "Watch illustrative videos and animations"),
+        ("🖍️", "Annotate charts with key labels")
+    ],
+    "Formulas & Shortcuts": [
+        ("📐", "Compile a quick-reference formula sheet"),
+        ("🔢", "Develop mnemonic devices for equations"),
+        ("📏", "Practice derivations and worked examples"),
+        ("✂️", "Solve formula-focused problem sets")
+    ],
+    "Logical Reasoning": [
+        ("🔍", "Solve proofs and logic puzzles"),
+        ("🔀", "Break problems into ordered steps"),
+        ("❓", "Apply Socratic questioning to each inference"),
+        ("🗣️", "Explain reasoning aloud to reinforce logic")
+    ]
+}
+
+STYLES = list(TECHNIQUES.keys())
+
+
+class StudyAIBuddy(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("AI Study Buddy – Your Personalized AI")
+        self.configure(bg=BG_COLOR)
+        self.geometry("800x600")
+        self.resizable(False, False)
+
+        self.answers = [tk.IntVar(value=-1) for _ in QUESTIONS]
+        self._build_ui()
+
+    def _build_ui(self):
+        # Header
+        header = tk.Frame(self, bg=PRIMARY_COLOR, height=60)
+        header.pack(fill="x")
+        tk.Label(header, text="AI Study Buddy", bg=PRIMARY_COLOR,
+                 fg=BTN_SAVE_FG, font=FONT_HEADER).pack(pady=10)
+
+        # Main content: scrollable questions
+        container = tk.Frame(self, bg=BG_COLOR)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+
+        canvas = tk.Canvas(container, bg=BG_COLOR, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        self.qframe = tk.Frame(canvas, bg=BG_COLOR)
+
+        self.qframe.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        canvas.create_window((0, 0), window=self.qframe, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Add questions
+        for idx, text in enumerate(QUESTIONS):
+            q_label = tk.Label(self.qframe, text=f"{idx+1}. {text}",
+                               wraplength=700, justify="left",
+                               bg=BG_COLOR, fg=TEXT_COLOR, font=FONT_BODY)
+            q_label.pack(anchor="w", pady=(10 if idx == 0 else 5, 0))
+            for val, style in enumerate(STYLES):
+                rb = ttk.Radiobutton(
+                    self.qframe,
+                    text=style,
+                    variable=self.answers[idx],
+                    value=val
+                )
+                rb.pack(anchor="w")
+
+        # Submit Button
+        submit_btn = tk.Button(
+            self,
+            text="Submit Answers",
+            bg=BTN_SAVE_BG, fg=BTN_SAVE_FG,
+            font=FONT_SUBHEADER,
+            command=self._submit
+        )
+        submit_btn.pack(pady=10)
+
+    def _submit(self):
+        # validation
+        if any(ans.get() < 0 for ans in self.answers):
+            messagebox.showwarning("Incomplete", "Please answer all questions.")
+            return
+
+        # tally
+        counts = [0]*len(STYLES)
+        for ans in self.answers:
+            counts[ans.get()] += 1
+        best_idx = counts.index(max(counts))
+        best_style = STYLES[best_idx]
+
+        # hide question frame
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        # show results
+        self._show_results(best_style)
+
+    def _show_results(self, style):
+        # Header
+        result_header = tk.Frame(self, bg=PRIMARY_COLOR, height=60)
+        result_header.pack(fill="x")
+        tk.Label(result_header, text="Your Personalized Study Plan",
+                 bg=PRIMARY_COLOR, fg=BTN_SAVE_FG,
+                 font=FONT_HEADER, anchor="w", padx=20).pack(fill="both")
+
+        # Progress Indicator
+        progress = tk.Label(
+            result_header,
+            text=f"15/15 Questions Completed",
+            bg=PRIMARY_COLOR, fg=BTN_SAVE_FG,
+            font=FONT_SUBHEADER, anchor="e", padx=20
+        )
+        progress.pack(fill="both")
+
+        # Content Frame
+        content = tk.Frame(self, bg=BG_COLOR)
+        content.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # Style Name & Subheader
+        tk.Label(content, text=style,
+                 bg=BG_COLOR, fg=TEXT_COLOR,
+                 font=("Helvetica", 20, "bold")).pack(anchor="w")
+        tk.Label(content, text="Top Study Technique",
+                 bg=BG_COLOR, fg=SUBTEXT_COLOR,
+                 font=FONT_SUBHEADER).pack(anchor="w", pady=(0,10))
+
+        # Techniques List
+        tips_frame = tk.Frame(content, bg=BG_COLOR)
+        tips_frame.pack(fill="x", pady=(0,20))
+        for icon, tip in TECHNIQUES[style]:
+            row = tk.Frame(tips_frame, bg=BG_COLOR)
+            row.pack(fill="x", pady=3)
+            tk.Label(row, text=icon, font=("Helvetica", 16),
+                     bg=BG_COLOR).pack(side="left")
+            tk.Label(row, text=tip, font=FONT_BODY,
+                     bg=BG_COLOR, fg=TEXT_COLOR).pack(side="left", padx=8)
+            sep = tk.Frame(tips_frame, bg=SEPARATOR_COLOR, height=1)
+            sep.pack(fill="x", pady=3)
+
+        # Action Buttons
+        btn_frame = tk.Frame(content, bg=BG_COLOR)
+        btn_frame.pack(anchor="e")
+
+        save_btn = tk.Button(
+            btn_frame,
+            text="Save Plan ▶️",
+            bg=BTN_SAVE_BG, fg=BTN_SAVE_FG,
+            font=FONT_SUBHEADER,
+            command=lambda: self._save_plan(style)
+        )
+        save_btn.pack(side="left", padx=5)
+
+        retake_btn = tk.Button(
+            btn_frame,
+            text="Retake Quiz ↻",
+            bg=BG_COLOR, fg=BTN_OUTLINE_FG,
+            font=FONT_SUBHEADER,
+            highlightbackground=BTN_OUTLINE_COLOR,
+            highlightthickness=2,
+            command=self._retake
+        )
+        retake_btn.pack(side="left", padx=5)
+
+        exit_btn = tk.Button(
+            btn_frame,
+            text="Exit ❌",
+            bg=BG_COLOR, fg=SUBTEXT_COLOR,
+            font=FONT_SUBHEADER,
+            command=self.destroy
+        )
+        exit_btn.pack(side="left", padx=5)
+
+    def _save_plan(self, style):
+        data = {
+            "style": style,
+            "techniques": [tip for _, tip in TECHNIQUES[style]]
+        }
+        path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json")],
+            title="Save Study Plan"
+        )
+        if path:
+            with open(path, "w") as f:
+                json.dump(data, f, indent=4)
+            messagebox.showinfo("Saved", f"Plan saved to {path}")
+
+    def _retake(self):
+        # restart application
+        self.destroy()
+        self.__init__()
+        self.mainloop()
+
+
+if __name__ == "__main__":
+    app = StudyAIBuddy()
+    app.mainloop()
